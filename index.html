@@ -37,36 +37,28 @@
   <div id="feed"></div>
 
   <script>
-    // ⬇️ Shared database URL (swap this line when you get a textdb endpoint)
-    const BLOB_URL = "https://api.npoint.io/0afa6f62fd72c44991b7";
+    const BLOB_URL = "https://textdb.dev/api/data/aeae041e-4a08-4524-bccb-4fae54766d34";
 
     let rants = [];
 
-    // ---------- Load from the shared storage ----------
     async function loadFeed() {
       try {
-        const res = await fetch(BLOB_URL);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const raw = await res.text();
-        rants = raw ? JSON.parse(raw) : [];
+        const res = await fetch(BLOB_URL + "?_=" + Date.now()); // cache-buster
+        const raw = (await res.text()).trim();
+        rants = raw.startsWith("[") ? JSON.parse(raw) : []; // ignore leftover junk like "hello world"
       } catch (err) {
         console.error("Load error:", err);
-        rants = rants || [];
       }
       render();
     }
 
-    // ---------- Save to the shared storage ----------
     async function save() {
       const res = await fetch(BLOB_URL, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        method: "POST",
+        headers: { "Content-Type": "text/plain" },
         body: JSON.stringify(rants)
       });
-      if (!res.ok) {
-        alert(`SAVE FAILED: HTTP ${res.status} — the storage service refused the write.`);
-        throw new Error(`HTTP ${res.status}`);
-      }
+      if (!res.ok) alert(`SAVE FAILED: HTTP ${res.status}`);
     }
 
     async function postRant() {
@@ -74,7 +66,7 @@
       const text = document.getElementById("rantInput").value.trim();
       if (!name || !text) return alert("Give yourself a fake name and write something first!");
 
-      await loadFeed(); // get newest version so we don't clobber friend's posts
+      await loadFeed();
       rants.unshift({ id: Date.now(), name, text, replies: [] });
       await save();
       document.getElementById("rantInput").value = "";
@@ -87,7 +79,7 @@
       const name = document.getElementById("nameInput").value.trim() || "Anonymous";
       if (!text) return;
 
-      await loadFeed(); // grab latest before writing
+      await loadFeed();
       const rant = rants.find(r => r.id === rantId);
       if (!rant) return;
 
@@ -103,7 +95,6 @@
       render();
     }
 
-    // ---------- Random fake-name generator ----------
     const ADJECTIVES = ["Invisible", "Nervous", "Grumpy", "Sleepy", "Feral", "Chaotic", "Silent", "Melancholy"];
     const NOUNS = ["Otter", "Penguin", "Raccoon", "Toast", "Cactus", "Ghost", "Duck", "Moth", "Waffle", "Goblin"];
 
@@ -150,7 +141,6 @@
       `).join("");
     }
 
-    // Kick things off + auto-refresh every 5 seconds
     loadFeed();
     setInterval(loadFeed, 5000);
   </script>
