@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RantAbout 🌧️</title>
+  <style>
+    * { box-sizing: border-box; font-family: system-ui, sans-serif; }
+    body { background: #1a1a2e; color: #eee; max-width: 600px; margin: 0 auto; padding: 20px; }
+    h1 { color: #a78bfa; }
+    input, textarea, button { width: 100%; padding: 10px; margin: 6px 0; border-radius: 8px; border: none; font-size: 14px; }
+    input, textarea { background: #2a2a4a; color: #eee; }
+    textarea { min-height: 90px; resize: vertical; }
+    button { background: #6d4aff; color: white; cursor: pointer; font-weight: bold; }
+    button:hover { background: #5937e6; }
+    .rant { background: #23233d; border-radius: 12px; padding: 14px; margin: 14px 0; }
+    .rant .name { color: #a78bfa; font-weight: bold; }
+    .rant .time { color: #888; font-size: 12px; margin-left: 8px; }
+    .reply { background: #2c2c4f; border-radius: 8px; padding: 8px; margin-top: 8px; font-size: 13px; }
+    .reply .name { color: #7dd3fc; }
+    .reply-btn { width: auto; padding: 4px 12px; background: #3a3a66; font-size: 12px; }
+    .delete-btn { width: auto; padding: 4px 12px; background: #7f1d1d; font-size: 12px; float: right; }
+  </style>
+</head>
+<body>
+  <h1>🌧️ Vent Box</h1>
+
+  <input id="nameInput" type="text" maxlength="30" placeholder="Fake name (e.g. Invisible Otter)" />
+  <textarea id="rantInput" maxlength="2000" placeholder="What happened today? Let it out..."></textarea>
+  <button onclick="postRant()">Post it 📤</button>
+
+  <div id="feed"></div>
+
+  <script>
+    // Load saved rants, or start fresh
+    let rants = JSON.parse(localStorage.getItem("rants") || "[]");
+
+    function save() {
+      localStorage.setItem("rants", JSON.stringify(rants));
+    }
+
+    function postRant() {
+      const name = document.getElementById("nameInput").value.trim();
+      const text = document.getElementById("rantInput").value.trim();
+      if (!name || !text) return alert("Give yourself a fake name and write something first!");
+
+      rants.unshift({ id: Date.now(), name, text, replies: [] });
+      save();
+      document.getElementById("rantInput").value = "";
+      render();
+    }
+
+    function addReply(rantId, btn) {
+      const box = btn.parentElement.querySelector(".reply-input");
+      const text = box.value.trim();
+      const name = document.getElementById("nameInput").value.trim() || "Anonymous";
+      if (!text) return;
+
+      const rant = rants.find(r => r.id === rantId);
+      rant.replies.push({ name, text, at: Date.now() });
+      save();
+      render();
+    }
+
+    function deleteRant(rantId) {
+      rants = rants.filter(r => r.id !== rantId);
+      save();
+      render();
+    }
+
+    function timeAgo(ts) {
+      const s = Math.floor((Date.now() - ts) / 1000);
+      if (s < 60) return "just now";
+      if (s < 3600) return `${Math.floor(s / 60)}m ago`;
+      if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
+      return `${Math.floor(s / 86400)}d ago`;
+    }
+
+    function escapeHTML(str) {
+      const div = document.createElement("div");
+      div.textContent = str;
+      return div.innerHTML;
+    }
+
+    function render() {
+      const feed = document.getElementById("feed");
+      if (rants.length === 0) {
+        feed.innerHTML = "<p style='color:#666'>Nothing here yet. First rant incoming? 👀</p>";
+        return;
+      }
+
+      feed.innerHTML = rants.map(r => `
+        <div class="rant">
+          <span class="name">🫥 ${escapeHTML(r.name)}</span>
+          <span class="time">${timeAgo(r.at ?? r.id)}</span>
+          <p>${escapeHTML(r.text)}</p>
+          ${r.replies.map(rp => `
+            <div class="reply">
+              <span class="name">💬 ${escapeHTML(rp.name)}</span>: ${escapeHTML(rp.text)}
+            </div>`).join("")}
+          <input class="reply-input" placeholder="Reply to this..." />
+          <button class="reply-btn" onclick="addReply(${r.id}, this)">Reply</button>
+          <button class="delete-btn" onclick="deleteRant(${r.id})">🗑️</button>
+        </div>
+      `).join("");
+    }
+
+    render();
+  </script>
+</body>
+</html>
