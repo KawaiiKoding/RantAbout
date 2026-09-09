@@ -1,5 +1,4 @@
 <!DOCTYPE html>
-const BLOB_URL = "https://api.npoint.io/0afa6f62fd72c44991b7";
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -108,5 +107,18 @@ const BLOB_URL = "https://api.npoint.io/0afa6f62fd72c44991b7";
 
     render();
   </script>
+  <script>
+    const BLOB_URL = "https://api.npoint.io/0afa6f62fd72c44991b7";
+
+    let rants = [];
+
+    // ... ALL the rest of the JavaScript goes here ...
+    // loadFeed, save, postRant, addReply, deleteRant, randomName,
+    // timeAgo, escapeHTML, render ...
+
+    loadFeed();
+    setInterval(loadFeed, 5000);
+  </script>
+</html>
 </body>
 </html>
