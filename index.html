@@ -13,6 +13,8 @@
     textarea { min-height: 90px; resize: vertical; }
     button { background: #6d4aff; color: white; cursor: pointer; font-weight: bold; }
     button:hover { background: #5937e6; }
+    .dice-btn { width: auto !important; padding: 10px 14px !important; }
+    .name-row { display: flex; gap: 8px; align-items: center; }
     .rant { background: #23233d; border-radius: 12px; padding: 14px; margin: 14px 0; }
     .rant .name { color: #a78bfa; font-weight: bold; }
     .rant .time { color: #888; font-size: 12px; margin-left: 8px; }
@@ -25,47 +27,90 @@
 <body>
   <h1>🌧️ RantAbout your day!</h1>
 
-  <input id="nameInput" type="text" maxlength="30" placeholder="Fake name (e.g. Invisible Otter)" />
+  <div class="name-row">
+    <input id="nameInput" type="text" maxlength="30" placeholder="Fake name (e.g. Invisible Otter)" />
+    <button class="dice-btn" onclick="document.getElementById('nameInput').value = randomName()">🎲</button>
+  </div>
   <textarea id="rantInput" maxlength="2000" placeholder="What happened today? Let it out..."></textarea>
   <button onclick="postRant()">Post it 📤</button>
 
   <div id="feed"></div>
 
   <script>
-    // Load saved rants, or start fresh
-    let rants = JSON.parse(localStorage.getItem("rants") || "[]");
+    // ⬇️ Shared database URL (swap this line when you get a textdb endpoint)
+    const BLOB_URL = "https://api.npoint.io/0afa6f62fd72c44991b7";
 
-    function save() {
-      localStorage.setItem("rants", JSON.stringify(rants));
+    let rants = [];
+
+    // ---------- Load from the shared storage ----------
+    async function loadFeed() {
+      try {
+        const res = await fetch(BLOB_URL);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const raw = await res.text();
+        rants = raw ? JSON.parse(raw) : [];
+      } catch (err) {
+        console.error("Load error:", err);
+        rants = rants || [];
+      }
+      render();
     }
 
-    function postRant() {
+    // ---------- Save to the shared storage ----------
+    async function save() {
+      const res = await fetch(BLOB_URL, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(rants)
+      });
+      if (!res.ok) {
+        alert(`SAVE FAILED: HTTP ${res.status} — the storage service refused the write.`);
+        throw new Error(`HTTP ${res.status}`);
+      }
+    }
+
+    async function postRant() {
       const name = document.getElementById("nameInput").value.trim();
       const text = document.getElementById("rantInput").value.trim();
       if (!name || !text) return alert("Give yourself a fake name and write something first!");
 
+      await loadFeed(); // get newest version so we don't clobber friend's posts
       rants.unshift({ id: Date.now(), name, text, replies: [] });
-      save();
+      await save();
       document.getElementById("rantInput").value = "";
       render();
     }
 
-    function addReply(rantId, btn) {
+    async function addReply(rantId, btn) {
       const box = btn.parentElement.querySelector(".reply-input");
       const text = box.value.trim();
       const name = document.getElementById("nameInput").value.trim() || "Anonymous";
       if (!text) return;
 
+      await loadFeed(); // grab latest before writing
       const rant = rants.find(r => r.id === rantId);
+      if (!rant) return;
+
       rant.replies.push({ name, text, at: Date.now() });
-      save();
+      await save();
       render();
     }
 
-    function deleteRant(rantId) {
+    async function deleteRant(rantId) {
+      await loadFeed();
       rants = rants.filter(r => r.id !== rantId);
-      save();
+      await save();
       render();
+    }
+
+    // ---------- Random fake-name generator ----------
+    const ADJECTIVES = ["Invisible", "Nervous", "Grumpy", "Sleepy", "Feral", "Chaotic", "Silent", "Melancholy"];
+    const NOUNS = ["Otter", "Penguin", "Raccoon", "Toast", "Cactus", "Ghost", "Duck", "Moth", "Waffle", "Goblin"];
+
+    function randomName() {
+      const a = ADJECTIVES[Math.floor(Math.random() * ADJECTIVES.length)];
+      const n = NOUNS[Math.floor(Math.random() * NOUNS.length)];
+      return `${a} ${n}`;
     }
 
     function timeAgo(ts) {
@@ -85,7 +130,7 @@
     function render() {
       const feed = document.getElementById("feed");
       if (rants.length === 0) {
-        feed.innerHTML = "<p style='color:#666'>Nothing here yet. First rant incoming? 👀</p>";
+        feed.innerHTML = "<p style='color:#666'>Nobody's ranted yet. Be the first to unleash! 👀</p>";
         return;
       }
 
@@ -105,20 +150,9 @@
       `).join("");
     }
 
-    render();
-  </script>
-  <script>
-    const BLOB_URL = "https://api.npoint.io/0afa6f62fd72c44991b7";
-
-    let rants = [];
-
-    // ... ALL the rest of the JavaScript goes here ...
-    // loadFeed, save, postRant, addReply, deleteRant, randomName,
-    // timeAgo, escapeHTML, render ...
-
+    // Kick things off + auto-refresh every 5 seconds
     loadFeed();
     setInterval(loadFeed, 5000);
   </script>
-</html>
 </body>
 </html>
